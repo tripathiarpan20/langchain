@@ -73,15 +73,28 @@ class TimeWeightedVectorStoreRetriever(BaseRetriever):
     def get_salient_docs(self, query: str) -> Dict[int, Tuple[Document, float]]:
         """Return documents that are salient to the query."""
         docs_and_scores: List[Tuple[Document, float]]
-        docs_and_scores = self.vectorstore.similarity_search_with_relevance_scores(
-            query, **self.search_kwargs
-        )
-        results = {}
-        for fetched_doc, relevance in docs_and_scores:
-            if "buffer_idx" in fetched_doc.metadata:
-                buffer_idx = fetched_doc.metadata["buffer_idx"]
-                doc = self.memory_stream[buffer_idx]
-                results[buffer_idx] = (doc, relevance)
+        try:
+            docs_and_scores = self.vectorstore.similarity_search_with_relevance_scores(
+                query, **self.search_kwargs
+            )
+            results = {}
+            for fetched_doc, relevance in docs_and_scores:
+                if "buffer_idx" in fetched_doc.metadata:
+                    buffer_idx = fetched_doc.metadata["buffer_idx"]
+                    doc = self.memory_stream[buffer_idx]
+                    results[buffer_idx] = (doc, relevance)
+        except NotImplementedError:
+            docs_and_scores = self.vectorstore.similarity_search(
+                query, **self.search_kwargs
+            )
+            results = {}
+            for doc in docs_and_scores:
+                fetched_doc = doc
+                relevance = doc.metadata['score']
+                if "buffer_idx" in fetched_doc.metadata:
+                    buffer_idx = fetched_doc.metadata["buffer_idx"]
+                    doc = self.memory_stream[buffer_idx]
+                    results[buffer_idx] = (doc, relevance)
         return results
 
     def _get_relevant_documents(
